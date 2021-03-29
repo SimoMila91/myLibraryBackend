@@ -86,7 +86,7 @@ app.post("/login", (req, res) => {
         } else {
             console.log(results);
             if (results.length === 0) {
-                res.status(404).send('Incorrect login data. Try again.');
+                res.status(401).send('Incorrect login data. Try again.');
             } else {
                 const hash = results[0].password;
                 if (bcrypt.compareSync(password, hash)) {
@@ -106,7 +106,7 @@ app.post("/login", (req, res) => {
                         }
                     });
                 } else {
-                    res.status(404).send("Password incorrect");
+                    res.status(401).send("Password incorrect");
                 }
             }
         }
@@ -129,19 +129,135 @@ app.post("/logout", (req, res) => {
     });
 });
 
+
 const insBook = (req, res) => {
+    const type = req.body.type === 'read' ? 1 : 0;
+
     const query = `
-        INSERT INTO Books(title, author, plot, genre, publish_date, linkDownload, linkBuy, linkPreview, idUser)
-        VALUES('${req.body.title}', '${req.body.title}', '${req.body.genre}', 
-                '${req.body.publish_date}', '${req.body.linkDownload}', '${req.body.linkBuy}', '${req.body.linkPreview}', ${idUser})`;
+        SELECT *
+        FROM UserBooks 
+        WHERE idBook = '${req.body.idBook}'`;
+
+    const queryTwo = `
+        INSERT INTO UserBooks(idUser, idBook, type)
+        VALUES(${req.body.idUser}, '${req.body.idBook}', ${type})`;
+
+    db.query(query, (error, results) => {
+        if (error) {
+            res.status(500).send(error);
+        } else {
+            if (results.length === 0) {
+                const query = `
+                    INSERT INTO Books(idBook, title, author, plot, linkImage, linkBuy, linkPdf, linkEpub, linkPreview, genre, publish_date)
+                    VALUES('${req.body.idBook}', '${req.body.title}', '${req.body.author}', '${req.body.plot}', 
+                            '${req.body.linkImage}', '${req.body.linkBuy}', '${req.body.linkPdf}', '${req.body.linkEpub}', 
+                            '${req.body.linkPreview}', '${req.body.genre}', '${req.body.publish_date}')
+                `;
+                db.query(query, (err, ress) => {
+                    if (err) {
+                        res.status(500).send(err);
+                    } else {
+                        db.query(queryTwo, (errors, ress) => {
+                            if (errors) {
+                                res.status(500).send(errors);
+                            } else {        
+                                res.status(200).send(`Book successfully added as: ${req.body.type}`);
+                            }
+                        });
+                    }
+                });
+            } else {
+                let equal = false; 
+                for (let i = 0; i < results.length && !equal; i++) {
+                    if (results[i].idUser == req.body.idUser)
+                        equal = true; 
+                }
+                if (equal) {
+                    res.status(409).send('Book already added. Check your personal page');
+                } else {
+                    db.query(queryTwo, (errors, ress) => {
+                        if (errors) {
+                            res.status(500).send(errors);
+                        } else {
+                            res.status(200).send(`Book successfully added as: ${req.body.type}`);
+                        }
+                    });
+                };  
+            };
+        };
+    });
+};
+
+app.post("/favorite", (req, res) => {
+    const favorite = parseInt(req.body.favorite);
+
+    const insertUserBook = `
+    INSERT INTO UserBooks(idUser, idBook, favorite)
+    VALUES(${req.body.idUser}, '${req.body.idBook}', ${favorite})`;
+
+    const query = `
+        SELECT *
+        FROM UserBooks
+        WHERE idBook = ${req.body.idBook}      
+    `; 
     db.query(query, (err, ress) => {
         if (err) {
             res.status(500).send(err);
         } else {
-            res.status(200).send("Ok");
+            if (ress.length !== 0) {
+                let equal = false; 
+                for (let i = 0; i < ress.length && !equal; i++) {
+                    if (results[i].idUser == req.body.idUser)
+                        equal = true; 
+                };
+                if (equal) {
+                    const queryTwo = `
+                        UPDATE UserBooks
+                        SET favorite = ${favorite}
+                        WHERE idUser = ${req.body.idUser}
+                        AND idBook = ${req.body.idBook}
+                    `;
+                    db.query(queryTwo, (err, ress) => {
+                        if (err) {
+                            res.status(500).send(err);
+                        } else {
+                            const added = favorite === 1 ? 'added to' : 'deleted from'
+                            res.status(200).send(`Successfully ${added} your favorites`);
+                        }
+                    });
+                } else {
+                  db.query(insertUserBook, (err, ress) => {
+                      if (err) {
+                          res.status(500).send(err);
+                      } else {
+                          res.status(200).send("Successfully added to your favorites");
+                      }
+                  });
+                }
+            } else {
+                const queryThree = `
+                INSERT INTO Books(idBook, title, author, plot, linkImage, linkBuy, linkPdf, linkEpub, linkPreview, genre, publish_date)
+                VALUES('${req.body.idBook}', '${req.body.title}', '${req.body.author}', '${req.body.plot}', 
+                        '${req.body.linkImage}', '${req.body.linkBuy}', '${req.body.linkPdf}', '${req.body.linkEpub}', 
+                        '${req.body.linkPreview}', '${req.body.genre}', '${req.body.publish_date}')
+                `;
+                db.query(queryThree, (err, ress) => {
+                    if (err) {
+                        res.status(500).send(err);
+                    } else {
+                        db.query(insertUserBook, (err, ress) => {
+                            if (err) {
+                                res.status(500).send(err);
+                            } else {        
+                                res.status(200).send(`Successfully added to your favorites`);
+                            }
+                        });
+                    }
+                });
+            }  
         }
     });
-};
+});
 
 const checkCredentials = (req, res, next) => {
     const authorization = req.headers.authorization;
@@ -153,7 +269,7 @@ const checkCredentials = (req, res, next) => {
     }
     const query = `
     SELECT *
-    FROM tokens
+    FROM Tokens
     WHERE token = '${token[1]}'`;
 
     db.query(query, (error, results) => {
@@ -164,10 +280,10 @@ const checkCredentials = (req, res, next) => {
             return res.status(401).send("Invalid token");
         }
         const date = new Date(results[0].expiry);
-        const id = results[0].userId;
+        const id = results[0].idUser;
         if (date < new Date()) {
             const queryTwo = `
-        DELETE FROM tokens WHERE userId = ${id}`;
+        DELETE FROM Tokens WHERE userId = ${id}`;
             db.query(queryTwo, (error, results) => {
                 if (error) {
                     return res.status(500).send(error);
