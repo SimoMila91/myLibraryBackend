@@ -188,9 +188,8 @@ const insBook = (req, res) => {
     });
 };
 
-app.post("/favorite", (req, res) => {
+const favorite =(req, res) => {
     const favorite = parseInt(req.body.favorite);
-
     const insertUserBook = `
     INSERT INTO UserBooks(idUser, idBook, favorite)
     VALUES(${req.body.idUser}, '${req.body.idBook}', ${favorite})`;
@@ -198,7 +197,7 @@ app.post("/favorite", (req, res) => {
     const query = `
         SELECT *
         FROM UserBooks
-        WHERE idBook = ${req.body.idBook}      
+        WHERE idBook = '${req.body.idBook}'      
     `; 
     db.query(query, (err, ress) => {
         if (err) {
@@ -207,15 +206,16 @@ app.post("/favorite", (req, res) => {
             if (ress.length !== 0) {
                 let equal = false; 
                 for (let i = 0; i < ress.length && !equal; i++) {
-                    if (results[i].idUser == req.body.idUser)
+                    if (ress[i].idUser == req.body.idUser && ress[i].idBook === req.body.idBook){
                         equal = true; 
+                    }
                 };
                 if (equal) {
                     const queryTwo = `
                         UPDATE UserBooks
                         SET favorite = ${favorite}
                         WHERE idUser = ${req.body.idUser}
-                        AND idBook = ${req.body.idBook}
+                        AND idBook = '${req.body.idBook}'
                     `;
                     db.query(queryTwo, (err, ress) => {
                         if (err) {
@@ -245,6 +245,7 @@ app.post("/favorite", (req, res) => {
                     if (err) {
                         res.status(500).send(err);
                     } else {
+                        console.log("libro aggiunto");
                         db.query(insertUserBook, (err, ress) => {
                             if (err) {
                                 res.status(500).send(err);
@@ -257,7 +258,7 @@ app.post("/favorite", (req, res) => {
             }  
         }
     });
-});
+};
 
 const checkCredentials = (req, res, next) => {
     const authorization = req.headers.authorization;
@@ -283,7 +284,7 @@ const checkCredentials = (req, res, next) => {
         const id = results[0].idUser;
         if (date < new Date()) {
             const queryTwo = `
-        DELETE FROM Tokens WHERE userId = ${id}`;
+        DELETE FROM Tokens WHERE idUser = ${id}`;
             db.query(queryTwo, (error, results) => {
                 if (error) {
                     return res.status(500).send(error);
@@ -298,5 +299,6 @@ const checkCredentials = (req, res, next) => {
 
 app.post("/signup", register);
 app.post("/insert", checkCredentials, insBook);
+app.post("/favorite", checkCredentials, favorite);
 
 app.listen(port, function () { console.log(`Server started at port: ${port}`) });
