@@ -10,10 +10,10 @@ const port = process.env.PORT || 3000;
 require('dotenv').config();
 
 let db = mysql.createPool({
-    host: 'eu-cdbr-west-01.cleardb.com',
-    user: 'b770972681724d',
-    password: '453fae59',
-    database: 'heroku_e5cdf7c56059821',
+    host: process.env.HOST_NAME,
+    user: process.env.USER,
+    password: process.env.PASSWORD,
+    database: process.env.DATABASE,
     debug: false
 });
 
