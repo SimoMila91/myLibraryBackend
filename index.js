@@ -557,4 +557,4 @@ app.post("/signup", register);
 app.post("/insert", checkCredentials, insBook);
 app.post("/favorite", checkCredentials, favorite);
 
-app.listen(port, function () { console.log(`Server started at port: ${port}`) });
+app.listen(process.env.PORT || port, function () { console.log(`Server started at port: ${port}`) });
