@@ -4,8 +4,7 @@
   "description": "Server for my library website ",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "devStart": "nodemon index.js"
+    "start": "node index.js"
   },
   "author": "Milanesio Simone",
   "license": "ISC",
