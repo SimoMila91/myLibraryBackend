@@ -10,10 +10,10 @@ const port = 3000;
 require('dotenv').config();
 
 let db = mysql.createPool({
-    host: 'localhost',
-    user: 'simone',
-    password: 'ciao',
-    database: 'my_library',
+    host: 'eu-cdbr-west-01.cleardb.com',
+    user: 'b770972681724d',
+    password: '453fae59',
+    database: 'heroku_e5cdf7c56059821',
     debug: false
 });
 
