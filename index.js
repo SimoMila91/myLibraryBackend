@@ -43,6 +43,10 @@ app.use(function (req, res, next) {
 
 });
 
+app.get("/", (req, res) => {
+  res.send("hello");
+});
+
 app.get("/read", (req, res) => {
     const id = parseInt(req.query.idUser);
     const index = parseInt(req.query.index);
@@ -353,7 +357,7 @@ app.post("/logout", (req, res) => {
 
 
 const insBook = (req, res) => {
-    const type = req.body.type === 'read' ? 1 : 0;
+    const type = req.body.type === 'read' ? 0 : 1;
 
     const query = `
         SELECT *
@@ -369,35 +373,28 @@ const insBook = (req, res) => {
             res.status(500).send(error);
         } else {
             if (results.length === 0) {
-                const query = `
-                    INSERT INTO Books(idBook, title, author, plot, linkImage, linkBuy, linkPdf, linkEpub, linkPreview, genre, publish_date)
-                    VALUES('${req.body.idBook}', '${req.body.title}', '${req.body.author}', '${req.body.plot}',
-                            '${req.body.linkImage}', '${req.body.linkBuy}', '${req.body.linkPdf}', '${req.body.linkEpub}',
-                            '${req.body.linkPreview}', '${req.body.genre}', '${req.body.publish_date}')
-                `;
-                db.query(query, (err, ress) => {
-                    if (err) {
-                        res.status(500).send(err);
-                    } else {
-                        db.query(queryTwo, (errors, ress) => {
-                            if (errors) {
-                                res.status(500).send(errors);
-                            } else {
-                                res.status(200).send(`Book successfully added as: ${req.body.type}`);
-                            }
-                        });
-                    }
-                });
+              db.query(queryTwo, (err, ress) => {
+                if (err) {
+                  res.status(500).send(err);
+                } else {
+                  res.status(200).send(`Book successfully added as ${req.body.type}`);
+                }
+              });
             } else {
                 let equal = false;
                 for (let i = 0; i < results.length && !equal; i++) {
-                    if (results[i].idUser == req.body.idUser)
+                    if (results[i].idUser == req.body.idUser && results[i].type === 1 || results[i].idUser == req.body.idUser && results[i].type === 0)
                         equal = true;
                 }
                 if (equal) {
                     res.status(409).send('Book already added. Check your personal page');
                 } else {
-                    db.query(queryTwo, (errors, ress) => {
+                    const queryThree = `
+                      UPDATE UserBooks
+                      SET type = ${type}
+                      WHERE idUser = ${req.body.idUser}
+                    `;
+                    db.query(queryThree, (errors, ress) => {
                         if (errors) {
                             res.status(500).send(errors);
                         } else {
@@ -410,23 +407,18 @@ const insBook = (req, res) => {
     });
 };
 
-const favorite =(req, res) => {
+const favorite = (req, res) => {
     const favorite = parseInt(req.body.favorite);
     const user = parseInt(req.body.idUser);
     console.log(typeof(favorite));
-    const insertUserBook = `
-    INSERT INTO UserBooks(idUser, idBook, favorite)
-    VALUES(${user}, '${req.body.idBook}', ${favorite})`;
-
     const query = `
         SELECT *
         FROM UserBooks
         WHERE idBook = '${req.body.idBook}'
     `;
-    console.log(typeof(req.body.idBook));
     db.query(query, (err, ress) => {
         if (err) {
-            res.status(500).send(err + " A");
+            res.status(500).send(err);
         } else {
             if (ress.length !== 0) {
                 let equal = false;
@@ -453,46 +445,52 @@ const favorite =(req, res) => {
                     `;
                     db.query(queryTwo, (err, ress) => {
                         if (err) {
-                            res.status(500).send(err + " B");
+                            res.status(500).send(err);
                         } else {
                             const added = favorite === 1 ? 'added to' : 'deleted from'
-                            res.status(200).send(`Successfully ${added} your favorites - A`);
+                            res.status(200).send(`Successfully ${added} your favorites`);
                         }
                     });
                 } else {
+                  const insertUserBook = `INSERT INTO UserBooks(idUser, idBook, favorite) VALUE(${user}, '${req.body.idBook}', ${favorite})`;
                   db.query(insertUserBook, (err, ress) => {
                       if (err) {
-                          res.status(500).send(err + " C");
+                          res.status(500).send(err);
                       } else {
-                          res.status(200).send("Successfully added to your favorites - B");
+                          res.status(200).send("Successfully added to your favorites");
                       }
                   });
                 }
-            } else {
-                console.log(typeof(req.body.plot));
-                const queryThree = `
-                INSERT INTO Books(idBook, title, author, plot, linkImage, linkBuy, linkPdf, linkEpub, linkPreview, genre, publish_date)
-                VALUES('${req.body.idBook}', '${req.body.title}', '${req.body.author}', '${req.body.plot}',
-                        '${req.body.linkImage}', '${req.body.linkBuy}', '${req.body.linkPdf}', '${req.body.linkEpub}',
-                        '${req.body.linkPreview}', '${req.body.genre}', '${req.body.publish_date}')
-                `;
-                db.query(queryThree, (err, ress) => {
-                    if (err) {
-                        res.status(500).send(err + "D");
-                    } else {
-                        console.log("libro aggiunto");
-                        db.query(insertUserBook, (err, ress) => {
-                            if (err) {
-                                res.status(500).send(err) + " E";
-                            } else {
-                                res.status(200).send(`Successfully added to your favorites - C`);
-                            }
-                        });
-                    }
-                });
             }
         }
     });
+};
+
+const checkBook = (req, res, next) => {
+  const queryInsBook = `
+  INSERT INTO Books(idBook, title, author, plot, linkImage, linkBuy, linkPdf, linkEpub, linkPreview, genre, publish_date)
+  VALUES('${req.body.idBook}', '${req.body.title}', '${req.body.author}', '${req.body.plot}',
+          '${req.body.linkImage}', '${req.body.linkBuy}', '${req.body.linkPdf}', '${req.body.linkEpub}',
+          '${req.body.linkPreview}', '${req.body.genre}', '${req.body.publish_date}')
+  `;
+  const searchBook = `SELECT * FROM Books WHERE idBook = '${req.body.idBook}'`;
+
+  db.query(searchBook, (err, ress) => {
+    if (err) {
+      console.log(err);
+    } else {
+      if (ress.length === 0) {
+        db.query(queryInsBook, (error, results) => {
+          if (error) {
+            console.log(error);
+          } else {
+            console.log('book added');
+          }
+        });
+      };
+      next();
+    };
+  });
 };
 
 const checkCredentials = (req, res, next) => {
@@ -554,7 +552,7 @@ const checkPassword = (req, res, next) => {
 app.put("/changePassword", changePassword);
 app.delete("/deleteAccount", checkPassword, deleteAccount);
 app.post("/signup", register);
-app.post("/insert", checkCredentials, insBook);
-app.post("/favorite", checkCredentials, favorite);
+app.post("/insert", checkCredentials, checkBook, insBook);
+app.post("/favorite", checkCredentials, checkBook, favorite);
 
 app.listen(port, function () { console.log(`Server started at port: ${port}`) });
