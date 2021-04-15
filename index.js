@@ -200,11 +200,12 @@ app.post("/newbook", (req, res) => {
 
 app.post("/books", (req, res) => {
     let typeChange = req.body.typeChange !== '' ? `&filter=${req.body.typeChange}` : '';
-    const user = parseInt(req.body.idUser);
+    const user = req.body.idUser;
     axios.get(`https://www.googleapis.com/books/v1/volumes?q=${req.body.term}&langRestrict=${req.body.language}&maxResults=40${typeChange}&key=${process.env.GOOGLE_API_KEY}`)
         .then(ress => {
             if (ress.data.totalItems !== 0) {
-                const query = `SELECT * FROM UserBooks WHERE idUser = ${user}`;
+              if (user !== null) {
+                const query = `SELECT * FROM UserBooks WHERE idUser = ${parseInt(user)}`;
                 db.query(query, function (error, results) {
                     if (error) {
                         console.log(error);
@@ -226,11 +227,14 @@ app.post("/books", (req, res) => {
                         res.status(200).send(obj);
                     }
                 });
+              } else {
+                res.status(200).send(ress.data.items);
+              }
+
             } else {
                 res.status(209).send(ress.data);
             };
         }).catch(err => { console.log(err)});
-
 });
 
 // REGISTER FUNCTION
